@@ -1,0 +1,39 @@
+name: README sync
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  readmes-change-together:
+    name: readmes-change-together
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+
+      - name: Test README sync checker
+        run: python -m unittest discover -s tests -p 'test_readme_sync.py' -v
+
+      - name: Require README translations to change together
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          if [[ "$BASE_SHA" =~ ^0+$ ]]; then
+            git diff-tree --root --no-commit-id --name-only -r "$HEAD_SHA"
+          else
+            git diff --name-only "$BASE_SHA" "$HEAD_SHA"
+          fi | python tools/check_readme_sync.py
