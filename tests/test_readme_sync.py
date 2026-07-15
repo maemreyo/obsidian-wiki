@@ -8,6 +8,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 CHECKER = ROOT / "tools" / "check_readme_sync.py"
+WORKFLOW = ROOT / ".github" / "workflows" / "readme-sync.yml"
 
 
 class ReadmeSyncTest(unittest.TestCase):
@@ -58,6 +59,24 @@ class ReadmeSyncTest(unittest.TestCase):
                 self.assertIn("README.md", contents)
                 self.assertIn("README_TW.md", contents)
                 self.assertIn("readmes-change-together", contents)
+
+    def test_pull_requests_compare_changes_from_the_merge_base(self) -> None:
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+
+        self.assertIn(
+            'if [[ "$EVENT_NAME" == "pull_request" ]]; then\n'
+            '            git diff --name-only "$BASE_SHA...$HEAD_SHA"',
+            workflow,
+        )
+
+    def test_all_zero_pushes_emit_the_complete_tip_tree(self) -> None:
+        workflow = WORKFLOW.read_text(encoding="utf-8")
+
+        self.assertIn(
+            'elif [[ "$BASE_SHA" =~ ^0+$ ]]; then\n'
+            '            git ls-tree -r --name-only "$HEAD_SHA"',
+            workflow,
+        )
 
 
 if __name__ == "__main__":
